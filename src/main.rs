@@ -9,57 +9,57 @@ pub const SCREEN_WIDTH: i32 = 320;
 pub const SCREEN_HEIGHT: i32 = 256;
 pub const COLORS: [Color; 9] = [
     Color {
-        r: 40.0 / 255.0,
-        g: 44.0 / 255.0,
-        b: 60.0 / 255.0,
+        r: 0.156,
+        g: 0.172,
+        b: 0.235,
         a: 1.0,
     },
     Color {
-        r: 115.0 / 255.0,
-        g: 239.0 / 255.0,
-        b: 232.0 / 255.0,
+        r: 0.450,
+        g: 0.937,
+        b: 0.909,
         a: 1.0,
     },
     Color {
-        r: 66.0 / 255.0,
-        g: 191.0 / 255.0,
-        b: 232.0 / 255.0,
+        r: 0.258,
+        g: 0.749,
+        b: 0.909,
         a: 1.0,
     },
     Color {
-        r: 39.0 / 255.0,
-        g: 137.0 / 255.0,
-        b: 205.0 / 255.0,
+        r: 0.152,
+        g: 0.537,
+        b: 0.803,
         a: 1.0,
     },
     Color {
-        r: 43.0 / 255.0,
-        g: 78.0 / 255.0,
-        b: 149.0 / 255.0,
+        r: 0.168,
+        g: 0.305,
+        b: 0.584,
         a: 1.0,
     },
     Color {
-        r: 69.0 / 255.0,
-        g: 114.0 / 255.0,
-        b: 227.0 / 255.0,
+        r: 0.270,
+        g: 0.447,
+        b: 0.890,
         a: 1.0,
     },
     Color {
-        r: 73.0 / 255.0,
-        g: 65.0 / 255.0,
-        b: 130.0 / 255.0,
+        r: 0.286,
+        g: 0.254,
+        b: 0.509,
         a: 1.0,
     },
     Color {
-        r: 120.0 / 255.0,
-        g: 100.0 / 255.0,
-        b: 198.0 / 255.0,
+        r: 0.470,
+        g: 0.392,
+        b: 0.776,
         a: 1.0,
     },
     Color {
-        r: 27.0 / 255.0,
-        g: 36.0 / 255.0,
-        b: 71.0 / 255.0,
+        r: 0.105,
+        g: 0.141,
+        b: 0.278,
         a: 1.0,
     },
 ];
@@ -130,7 +130,7 @@ impl Block {
                 6 => BlockShape::Z,
                 _ => BlockShape::I,
             },
-            gravity_timer: 30.0,
+            gravity_timer: 45.0,
             movement_timer: 0.0,
         }
     }
@@ -486,7 +486,7 @@ async fn update(game: &mut Game) -> bool {
         if is_key_down(KeyCode::Down) {
             game.block.gravity_timer = 5.0;
         } else {
-            game.block.gravity_timer = 30.0;
+            game.block.gravity_timer = 45.0;
         }
         game.block.position.y += 1.0;
 
