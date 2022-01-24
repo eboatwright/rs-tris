@@ -113,6 +113,7 @@ enum BlockShape {
 #[derive(Clone)]
 struct Block {
     position: Vec2,
+    render_position: Vec2,
     rotation: u8,
     block_shape: BlockShape,
     gravity_timer: f32,
@@ -122,7 +123,8 @@ struct Block {
 impl Default for Block {
     fn default() -> Block {
         Block {
-            position: vec2(12.0, 1.0),
+            position: vec2(13.0, 1.0),
+            render_position: vec2(13.0 * 16.0, 16.0),
             rotation: 0,
             block_shape: match thread_rng().gen_range(0..7) {
                 0 => BlockShape::I,
@@ -381,6 +383,10 @@ impl Block {
         }
     }
 
+    fn lerp_position(&mut self) {
+        self.render_position = self.render_position.lerp(self.position * 16.0, 0.5);
+    }
+
     fn render(&self, game: &Game) {
         let shape = self.get_shape();
         for y in 0..shape.len() {
@@ -388,8 +394,8 @@ impl Block {
                 if shape[y][x] != 0 {
                     draw_texture(
                         game.block_texture.unwrap(),
-                        (self.position.x + x as f32) * 16.0,
-                        (self.position.y + y as f32) * 16.0,
+                        self.render_position.x + x as f32 * 16.0,
+                        self.render_position.y + y as f32 * 16.0,
                         COLORS[shape[y][x] as usize],
                     );
                 }
@@ -462,6 +468,8 @@ async fn main() {
 }
 
 async fn update(game: &mut Game) -> bool {
+    game.block.lerp_position();
+    game.next_block.lerp_position();
     if game.game_over {
         if is_key_pressed(KeyCode::X) {
             *game = Game::new().await;
