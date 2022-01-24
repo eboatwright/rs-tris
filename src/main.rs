@@ -594,6 +594,7 @@ fn render(game: &Game) {
     }
     game.block.render(game);
     game.next_block.render(game);
+    draw_text("Next:", 215.0, 12.0, 16.0, WHITE);
     if game.game_over {
         draw_text("GAME OVER!", 28.0, 20.0, 32.0, WHITE);
         draw_text("X to play again?", 40.0, 36.0, 16.0, WHITE);
