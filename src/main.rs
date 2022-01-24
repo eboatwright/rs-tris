@@ -1,3 +1,7 @@
+use crate::util::clamp_range;
+use macroquad::audio::play_sound;
+use crate::util::load_sound_file;
+use macroquad::audio::PlaySoundParams;
 use crate::util::delta_time;
 use crate::util::load_texture_file;
 use macroquad::prelude::*;
@@ -415,11 +419,16 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
+    let music = load_sound_file("res/sfx/music.ogg".to_string()).await;
+    play_sound(
+        music,
+        PlaySoundParams {
+            looped: true,
+            volume: 1.0,
+        },
+    );
     let mut game = Game::new().await;
-    game.block = Block {
-        position: vec2(5.0, 0.0),
-        ..Default::default()
-    };
+    game.block.position = vec2(5.0, 0.0);
     let game_render_target = render_target(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32);
     let camera = Camera2D {
         zoom: vec2(1.0 / SCREEN_WIDTH as f32 * 2.0, 1.0 / SCREEN_HEIGHT as f32 * 2.0),
@@ -473,6 +482,7 @@ async fn update(game: &mut Game) -> bool {
     if game.game_over {
         if is_key_pressed(KeyCode::X) {
             *game = Game::new().await;
+            game.block.position = vec2(5.0, 0.0);
             return true;
         }
         return false;
@@ -531,7 +541,7 @@ async fn update(game: &mut Game) -> bool {
             for y in 0..shape.len() {
                 for x in 0..shape[y].len() {
                     if shape[y][x] != 0 {
-                        game.placed_blocks[y + game.block.position.y as usize][x + game.block.position.x as usize] = shape[y][x];
+                        game.placed_blocks[y + clamp_range(0.0, game.block.position.y, 20.0) as usize][x + clamp_range(0.0, game.block.position.x, 20.0) as usize] = shape[y][x];
                     }
                 }   
             }
