@@ -68,6 +68,7 @@ struct Game {
     placed_blocks: [[u8; 12]; 16],
     block: Block,
     game_over: bool,
+    next_block: Block,
 
     block_texture: Option<Texture2D>,
 }
@@ -78,8 +79,9 @@ impl Game {
             placed_blocks: [
                 [8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8]; 16
             ],
-            block: Block::new(),
+            block: Block::default(),
             game_over: false,
+            next_block: Block::default(),
 
             block_texture: Some(load_texture_file("res/img/block.png".to_string()).await),
         }
@@ -103,10 +105,12 @@ impl Game {
     }
 }
 
+#[derive(Clone)]
 enum BlockShape {
     I, O, T, J, L, S, Z,
 }
 
+#[derive(Clone)]
 struct Block {
     position: Vec2,
     rotation: u8,
@@ -115,10 +119,10 @@ struct Block {
     movement_timer: f32,
 }
 
-impl Block {
-    fn new() -> Block {
+impl Default for Block {
+    fn default() -> Block {
         Block {
-            position: vec2(5.0, 0.0),
+            position: vec2(12.0, 1.0),
             rotation: 0,
             block_shape: match thread_rng().gen_range(0..7) {
                 0 => BlockShape::I,
@@ -134,7 +138,9 @@ impl Block {
             movement_timer: 0.0,
         }
     }
+}
 
+impl Block {
     fn get_shape(&self) -> [[u8; 4]; 4] {
         return match self.block_shape {
             BlockShape::I => {
@@ -374,6 +380,22 @@ impl Block {
             },
         }
     }
+
+    fn render(&self, game: &Game) {
+        let shape = self.get_shape();
+        for y in 0..shape.len() {
+            for x in 0..shape[y].len() {
+                if shape[y][x] != 0 {
+                    draw_texture(
+                        game.block_texture.unwrap(),
+                        (self.position.x + x as f32) * 16.0,
+                        (self.position.y + y as f32) * 16.0,
+                        COLORS[shape[y][x] as usize],
+                    );
+                }
+            }
+        }
+    }
 }
 
 fn window_conf() -> Conf {
@@ -388,19 +410,23 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     let mut game = Game::new().await;
-    game.block = Block::new();
+    game.block = Block {
+        position: vec2(5.0, 0.0),
+        ..Default::default()
+    };
+    let game_render_target = render_target(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32);
+    let camera = Camera2D {
+        zoom: vec2(1.0 / SCREEN_WIDTH as f32 * 2.0, 1.0 / SCREEN_HEIGHT as f32 * 2.0),
+        target: vec2(SCREEN_WIDTH as f32 * 0.5 - 16.0, SCREEN_HEIGHT as f32 * 0.5),
+        render_target: Some(game_render_target),
+        ..Default::default()
+    };
     loop {
         if !update(&mut game).await {
             game.game_over = true;
         }
-
-        let game_render_target = render_target(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32);
-        set_camera(&Camera2D {
-            zoom: vec2(1.0 / SCREEN_WIDTH as f32 * 2.0, 1.0 / SCREEN_HEIGHT as f32 * 2.0),
-            target: vec2(SCREEN_WIDTH as f32 * 0.5 - 64.0, SCREEN_HEIGHT as f32 * 0.5),
-            render_target: Some(game_render_target),
-            ..Default::default()
-        });
+        
+        set_camera(&camera);
         clear_background(BLACK);
 
         render(&game);
@@ -457,8 +483,8 @@ async fn update(game: &mut Game) -> bool {
         }
     }
     if is_key_pressed(KeyCode::X) {
-        for y in game.block.position.y as usize..16 {
-            game.block.position.y = y as f32;
+        for _ in game.block.position.y as usize..16 {
+            game.block.position.y += 1.0;
             if game.block_collides() {
                 game.block.position.y -= 1.0;
                 game.block.gravity_timer = 0.0;
@@ -501,7 +527,12 @@ async fn update(game: &mut Game) -> bool {
                     }
                 }   
             }
-            game.block = Block::new();
+            game.block = Block {
+                position: vec2(5.0, 0.0),
+                block_shape: game.next_block.block_shape.clone(),
+                ..Default::default()
+            };
+            game.next_block = Block::default();
         }
     }
 
@@ -543,19 +574,8 @@ fn render(game: &Game) {
             );
         }
     }
-    let shape = game.block.get_shape();
-    for y in 0..shape.len() {
-        for x in 0..shape[y].len() {
-            if shape[y][x] != 0 {
-                draw_texture(
-                    game.block_texture.unwrap(),
-                    (game.block.position.x + x as f32) * 16.0,
-                    (game.block.position.y + y as f32) * 16.0,
-                    COLORS[shape[y][x] as usize],
-                );
-            }
-        }
-    }
+    game.block.render(game);
+    game.next_block.render(game);
     if game.game_over {
         draw_text("GAME OVER!", 28.0, 20.0, 32.0, WHITE);
         draw_text("X to play again?", 40.0, 36.0, 16.0, WHITE);
