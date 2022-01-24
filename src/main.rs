@@ -65,11 +65,11 @@ pub const COLORS: [Color; 9] = [
 ];
 
 struct Game {
-    pub placed_blocks: [[u8; 12]; 16],
-    pub block: Block,
-    pub game_over: bool,
+    placed_blocks: [[u8; 12]; 16],
+    block: Block,
+    game_over: bool,
 
-    pub block_texture: Option<Texture2D>,
+    block_texture: Option<Texture2D>,
 }
 
 impl Game {
@@ -397,7 +397,7 @@ async fn main() {
         let game_render_target = render_target(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32);
         set_camera(&Camera2D {
             zoom: vec2(1.0 / SCREEN_WIDTH as f32 * 2.0, 1.0 / SCREEN_HEIGHT as f32 * 2.0),
-            target: vec2(SCREEN_WIDTH as f32 / 2.0, SCREEN_HEIGHT as f32 / 2.0),
+            target: vec2(SCREEN_WIDTH as f32 * 0.5 - 64.0, SCREEN_HEIGHT as f32 * 0.5),
             render_target: Some(game_render_target),
             ..Default::default()
         });
@@ -457,7 +457,7 @@ async fn update(game: &mut Game) -> bool {
         }
     }
     if is_key_pressed(KeyCode::X) {
-        for y in 0..16 {
+        for y in game.block.position.y as usize..16 {
             game.block.position.y = y as f32;
             if game.block_collides() {
                 game.block.position.y -= 1.0;
@@ -471,7 +471,7 @@ async fn update(game: &mut Game) -> bool {
     || is_key_down(KeyCode::Right) {
         game.block.movement_timer -= delta_time();
         if game.block.movement_timer <= 0.0 {
-            game.block.movement_timer = 6.0;
+            game.block.movement_timer = 7.0;
             game.block.position.x += if is_key_down(KeyCode::Left) { -1.0 } else { 1.0 };
             if game.block_collides() {
                 game.block.position.x -= if is_key_down(KeyCode::Left) { -1.0 } else { 1.0 };
@@ -482,7 +482,8 @@ async fn update(game: &mut Game) -> bool {
     }
 
     game.block.gravity_timer -= delta_time();
-    if game.block.gravity_timer <= 0.0 {
+    if game.block.gravity_timer <= 0.0
+    || is_key_pressed(KeyCode::Down) {
         if is_key_down(KeyCode::Down) {
             game.block.gravity_timer = 5.0;
         } else {
@@ -492,10 +493,11 @@ async fn update(game: &mut Game) -> bool {
 
         let shape = game.block.get_shape();
         if game.block_collides() {
+            game.block.position.y -= 1.0;
             for y in 0..shape.len() {
                 for x in 0..shape[y].len() {
                     if shape[y][x] != 0 {
-                        game.placed_blocks[y + game.block.position.y as usize - 1][x + game.block.position.x as usize] = shape[y][x];
+                        game.placed_blocks[y + game.block.position.y as usize][x + game.block.position.x as usize] = shape[y][x];
                     }
                 }   
             }
@@ -555,6 +557,7 @@ fn render(game: &Game) {
         }
     }
     if game.game_over {
-        draw_text("GAME OVER!", 10.0, 10.0, 16.0, WHITE);
+        draw_text("GAME OVER!", 28.0, 20.0, 32.0, WHITE);
+        draw_text("X to play again?", 40.0, 36.0, 16.0, WHITE);
     }
 }
