@@ -1,3 +1,4 @@
+use macroquad::audio::stop_sound;
 use macroquad::audio::play_sound;
 use macroquad::audio::PlaySoundParams;
 use crate::COLORS;
@@ -17,6 +18,7 @@ pub fn update_game(game: &mut Game) -> bool {
     }
     if game.game_over {
         if is_key_pressed(KeyCode::X) {
+            game.shake();
             *game = Game {
                 state: GameState::Game,
                 placed_blocks: [[8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8]; 16],
@@ -33,6 +35,7 @@ pub fn update_game(game: &mut Game) -> bool {
                 played_game_over: false,
                 ..*game
             };
+            stop_sound(game.game_over_sfx.unwrap());
             play_sound(
                 game.music.unwrap(),
                 PlaySoundParams {
@@ -58,6 +61,7 @@ pub fn update_game(game: &mut Game) -> bool {
         }
     }
     if is_key_pressed(KeyCode::X) {
+        game.shake();
         for _ in game.block.position.y as usize..16 {
             game.block.position.y += 1.0;
             if game.block_collides() {
@@ -71,6 +75,7 @@ pub fn update_game(game: &mut Game) -> bool {
     if is_key_pressed(KeyCode::C)
     && !game.has_switched {
         game.has_switched = true;
+        game.shake();
         play_sound(
             game.hit_sfx.unwrap(),
             PlaySoundParams {
@@ -122,6 +127,7 @@ pub fn update_game(game: &mut Game) -> bool {
         let shape = game.block.get_shape();
         if game.block_collides() {
             game.has_switched = false;
+            game.shake();
             play_sound(
                 game.hit_sfx.unwrap(),
                 PlaySoundParams {
@@ -161,13 +167,7 @@ pub fn update_game(game: &mut Game) -> bool {
         }
     }
     if is_full_line {
-        play_sound(
-            game.clear_line_sfx.unwrap(),
-            PlaySoundParams {
-                looped: false,
-                volume: 1.1,
-            },
-        );
+        game.shake();
     }
 
     for x in 1..game.placed_blocks[0].len() - 1 {

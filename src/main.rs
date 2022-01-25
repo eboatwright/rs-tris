@@ -103,7 +103,6 @@ pub struct Game {
     pub music: Option<Sound>,
     pub play_sfx: Option<Sound>,
     pub game_over_sfx: Option<Sound>,
-    pub clear_line_sfx: Option<Sound>,
     pub hit_sfx: Option<Sound>,
 
     pub particles: Vec<Particle>,
@@ -112,6 +111,8 @@ pub struct Game {
     pub menu_delay: f32,
     pub played_game_over: bool,
     pub has_switched: bool,
+
+    pub screen_shake: Vec2,
 }
 
 impl Game {
@@ -130,7 +131,6 @@ impl Game {
             music: Some(load_sound_file("res/sfx/music.ogg".to_string()).await),
             play_sfx: Some(load_sound_file("res/sfx/play.ogg".to_string()).await),
             game_over_sfx: Some(load_sound_file("res/sfx/game_over.ogg".to_string()).await),
-            clear_line_sfx: Some(load_sound_file("res/sfx/clear_line.ogg".to_string()).await),
             hit_sfx: Some(load_sound_file("res/sfx/hit.ogg".to_string()).await),
 
             particles: Vec::new(),
@@ -139,6 +139,8 @@ impl Game {
             menu_delay: 30.0,
             played_game_over: false,
             has_switched: false,
+
+            screen_shake: vec2(0.0, 0.0),
         }
     }
 
@@ -158,6 +160,11 @@ impl Game {
         }
         false
     }
+
+    pub fn shake(&mut self) {
+        let mut random = thread_rng();
+        self.screen_shake = vec2(random.gen_range(-10.0..10.0), random.gen_range(-10.0..10.0));
+    }
 }
 
 fn window_conf() -> Conf {
@@ -172,7 +179,7 @@ fn window_conf() -> Conf {
 #[macroquad::main(window_conf)]
 async fn main() {
     let game_render_target = render_target(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32);
-    let camera = Camera2D {
+    let mut camera = Camera2D {
         zoom: vec2(1.0 / SCREEN_WIDTH as f32 * 2.0, 1.0 / SCREEN_HEIGHT as f32 * 2.0),
         target: vec2(SCREEN_WIDTH as f32 * 0.5 - 16.0, SCREEN_HEIGHT as f32 * 0.5),
         render_target: Some(game_render_target),
@@ -188,7 +195,9 @@ async fn main() {
     }
     game.state = GameState::Menu;
     game.block.position = vec2(5.0, 0.0);
+    let mut is_other_frame = true;
     loop {
+        is_other_frame = !is_other_frame;
         update_background(&mut game);
         if game.state == GameState::Game {
             if !update_game(&mut game) {
@@ -208,7 +217,13 @@ async fn main() {
         } else {
             update_menu(&mut game);
         }
+        if is_other_frame {
+            game.screen_shake *= -0.9;
+        } else {
+            game.screen_shake *= 0.9;
+        }
         
+        camera.target += game.screen_shake.round();
         set_camera(&camera);
         clear_background(BLACK);
 
@@ -244,6 +259,8 @@ async fn main() {
                 ..Default::default()
             },
         );
+
+        camera.target -= game.screen_shake.round();
 
         next_frame().await
     }

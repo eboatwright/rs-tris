@@ -12,6 +12,7 @@ pub fn update_menu(game: &mut Game) {
     if is_key_pressed(KeyCode::X)
     && !game.play {
         game.play = true;
+        game.shake();
         play_sound(
             game.play_sfx.unwrap(),
             PlaySoundParams {
