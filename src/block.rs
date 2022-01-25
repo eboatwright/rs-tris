@@ -4,12 +4,12 @@ use crate::Game;
 use ::rand::Rng;
 use ::rand::thread_rng;
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub enum BlockShape {
     I, O, T, J, L, S, Z,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 pub struct Block {
     pub position: Vec2,
     pub render_position: Vec2,

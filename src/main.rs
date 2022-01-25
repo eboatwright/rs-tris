@@ -95,6 +95,7 @@ pub struct Game {
     pub block: Block,
     pub game_over: bool,
     pub next_block: Block,
+    pub held_block: Option<Block>,
 
     pub block_texture: Option<Texture2D>,
     pub background_texture: Option<Texture2D>,
@@ -110,6 +111,7 @@ pub struct Game {
     pub play: bool,
     pub menu_delay: f32,
     pub played_game_over: bool,
+    pub has_switched: bool,
 }
 
 impl Game {
@@ -120,6 +122,7 @@ impl Game {
             block: Block::default(),
             game_over: false,
             next_block: Block::default(),
+            held_block: None,
 
             block_texture: Some(load_texture_file("res/img/block.png".to_string()).await),
             background_texture: Some(load_texture_file("res/img/background.png".to_string()).await),
@@ -135,6 +138,7 @@ impl Game {
             play: false,
             menu_delay: 30.0,
             played_game_over: false,
+            has_switched: false,
         }
     }
 

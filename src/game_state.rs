@@ -11,6 +11,10 @@ use crate::GameState;
 pub fn update_game(game: &mut Game) -> bool {
     game.block.lerp_position();
     game.next_block.lerp_position();
+    if !game.held_block.is_none() {
+        let held = game.held_block.unwrap();
+        game.held_block.get_or_insert_with(|| held).lerp_position();
+    }
     if game.game_over {
         if is_key_pressed(KeyCode::X) {
             *game = Game {
@@ -22,6 +26,7 @@ pub fn update_game(game: &mut Game) -> bool {
                 },
                 game_over: false,
                 next_block: Block::default(),
+                held_block: None,
 
                 particles: game.particles.clone(),
 
@@ -63,6 +68,26 @@ pub fn update_game(game: &mut Game) -> bool {
             }
         }
     }
+    if is_key_pressed(KeyCode::C)
+    && !game.has_switched {
+        game.has_switched = true;
+        let old_held_block = game.held_block.clone();
+        game.held_block = Some(Block {
+            position: vec2(13.0, 7.0),
+            ..game.block
+        });
+        game.block = Block {
+            position: vec2(5.0, 0.0),
+            ..if old_held_block.is_none() {
+                game.next_block
+            } else {
+                old_held_block.unwrap()
+            }
+        };
+        if old_held_block.is_none() {
+            game.next_block = Block::default();
+        }
+    }
     if is_key_down(KeyCode::Left)
     || is_key_down(KeyCode::Right) {
         game.block.movement_timer -= delta_time();
@@ -89,6 +114,7 @@ pub fn update_game(game: &mut Game) -> bool {
 
         let shape = game.block.get_shape();
         if game.block_collides() {
+            game.has_switched = false;
             play_sound(
                 game.hit_sfx.unwrap(),
                 PlaySoundParams {
@@ -106,7 +132,7 @@ pub fn update_game(game: &mut Game) -> bool {
             }
             game.block = Block {
                 position: vec2(5.0, 0.0),
-                block_shape: game.next_block.block_shape.clone(),
+                block_shape: game.next_block.block_shape,
                 ..Default::default()
             };
             game.next_block = Block::default();
@@ -155,7 +181,11 @@ pub fn render_game(game: &Game) {
     }
     game.block.render(game);
     game.next_block.render(game);
+    if let Some(block) = game.held_block {
+        block.render(game);
+    }
     draw_text("Next:", 215.0, 12.0, 16.0, WHITE);
+    draw_text("Held:", 215.0, 92.0, 16.0, WHITE);
     if game.game_over {
         draw_text("GAME OVER!", 28.0, 25.0, 32.0, WHITE);
         draw_text("X to play again?", 40.0, 41.0, 16.0, WHITE);
