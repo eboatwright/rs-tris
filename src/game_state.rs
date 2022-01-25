@@ -1,17 +1,40 @@
+use macroquad::audio::play_sound;
+use macroquad::audio::PlaySoundParams;
 use crate::COLORS;
 use crate::Block;
 use crate::util::clamp_range;
 use macroquad::prelude::*;
 use crate::Game;
 use crate::util::delta_time;
+use crate::GameState;
 
-pub async fn update_game(game: &mut Game) -> bool {
+pub fn update_game(game: &mut Game) -> bool {
     game.block.lerp_position();
     game.next_block.lerp_position();
     if game.game_over {
         if is_key_pressed(KeyCode::X) {
-            *game = Game::new().await;
-            game.block.position = vec2(5.0, 0.0);
+            *game = Game {
+                state: GameState::Game,
+                placed_blocks: [[8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8]; 16],
+                block: Block {
+                    position: vec2(5.0, 0.0),
+                    ..Default::default()
+                },
+                game_over: false,
+                next_block: Block::default(),
+
+                particles: game.particles.clone(),
+
+                played_game_over: false,
+                ..*game
+            };
+            play_sound(
+                game.music.unwrap(),
+                PlaySoundParams {
+                    looped: true,
+                    volume: 0.4,
+                },
+            );
             return true;
         }
         return false;
@@ -66,6 +89,13 @@ pub async fn update_game(game: &mut Game) -> bool {
 
         let shape = game.block.get_shape();
         if game.block_collides() {
+            play_sound(
+                game.hit_sfx.unwrap(),
+                PlaySoundParams {
+                    looped: false,
+                    volume: 0.85,
+                },
+            );
             game.block.position.y -= 1.0;
             for y in 0..shape.len() {
                 for x in 0..shape[y].len() {
@@ -83,7 +113,6 @@ pub async fn update_game(game: &mut Game) -> bool {
         }
     }
 
-    let mut clear_line_y: usize = 1;
     for y in 0..game.placed_blocks.len() {
         let mut is_full_line = true;
         for x in 1..game.placed_blocks[y].len() - 1 {
@@ -92,16 +121,16 @@ pub async fn update_game(game: &mut Game) -> bool {
             }
         }
         if is_full_line {
-            if game.clear_line_delay <= 0.0 {
-                game.clear_line_delay = 20.0;
+            play_sound(
+                game.clear_line_sfx.unwrap(),
+                PlaySoundParams {
+                    looped: false,
+                    volume: 1.1,
+                },
+            );
+             for i in (1..=y).rev() {
+                game.placed_blocks[i] = game.placed_blocks[i - 1];
             }
-            clear_line_y = y;
-        }
-    }
-    game.clear_line_delay -= delta_time();
-    if game.clear_line_delay <= 0.0 {
-        for i in (1..=clear_line_y).rev() {
-            game.placed_blocks[i] = game.placed_blocks[i - 1];
         }
     }
 

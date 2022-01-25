@@ -1,3 +1,5 @@
+use macroquad::audio::stop_sound;
+use macroquad::audio::Sound;
 use ::rand::Rng;
 use ::rand::thread_rng;
 use crate::background::*;
@@ -97,18 +99,24 @@ pub struct Game {
     pub block_texture: Option<Texture2D>,
     pub background_texture: Option<Texture2D>,
 
+    pub music: Option<Sound>,
+    pub play_sfx: Option<Sound>,
+    pub game_over_sfx: Option<Sound>,
+    pub clear_line_sfx: Option<Sound>,
+    pub hit_sfx: Option<Sound>,
+
     pub particles: Vec<Particle>,
 
-    pub clear_line_delay: f32,
+    pub play: bool,
+    pub menu_delay: f32,
+    pub played_game_over: bool,
 }
 
 impl Game {
     async fn new() -> Game {
         Game {
             state: GameState::Game,
-            placed_blocks: [
-                [8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8]; 16
-            ],
+            placed_blocks: [[8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8]; 16],
             block: Block::default(),
             game_over: false,
             next_block: Block::default(),
@@ -116,9 +124,17 @@ impl Game {
             block_texture: Some(load_texture_file("res/img/block.png".to_string()).await),
             background_texture: Some(load_texture_file("res/img/background.png".to_string()).await),
 
+            music: Some(load_sound_file("res/sfx/music.ogg".to_string()).await),
+            play_sfx: Some(load_sound_file("res/sfx/play.ogg".to_string()).await),
+            game_over_sfx: Some(load_sound_file("res/sfx/game_over.ogg".to_string()).await),
+            clear_line_sfx: Some(load_sound_file("res/sfx/clear_line.ogg".to_string()).await),
+            hit_sfx: Some(load_sound_file("res/sfx/hit.ogg".to_string()).await),
+
             particles: Vec::new(),
 
-            clear_line_delay: 0.0,
+            play: false,
+            menu_delay: 30.0,
+            played_game_over: false,
         }
     }
 
@@ -158,14 +174,6 @@ async fn main() {
         render_target: Some(game_render_target),
         ..Default::default()
     };
-    let music = load_sound_file("res/sfx/music.ogg".to_string()).await;
-    play_sound(
-        music,
-        PlaySoundParams {
-            looped: true,
-            volume: 0.5,
-        },
-    );
     let mut game = Game::new().await;
     let mut random = thread_rng();
     for _ in 0..30 {
@@ -179,8 +187,19 @@ async fn main() {
     loop {
         update_background(&mut game);
         if game.state == GameState::Game {
-            if !update_game(&mut game).await {
+            if !update_game(&mut game) {
                 game.game_over = true;
+                if !game.played_game_over {
+                    game.played_game_over = true;
+                    stop_sound(game.music.unwrap());
+                    play_sound(
+                        game.game_over_sfx.unwrap(),
+                        PlaySoundParams {
+                            looped: false,
+                            volume: 0.8,
+                        },
+                    );
+                }
             }
         } else {
             update_menu(&mut game);

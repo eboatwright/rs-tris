@@ -1,10 +1,34 @@
+use macroquad::audio::PlaySoundParams;
+use macroquad::audio::play_sound;
+use crate::util::delta_time;
 use macroquad::prelude::*;
 use crate::Game;
 use crate::GameState;
 
 pub fn update_menu(game: &mut Game) {
-    if is_key_pressed(KeyCode::X) {
+    if game.play {
+        game.menu_delay -= delta_time();
+    }
+    if is_key_pressed(KeyCode::X)
+    && !game.play {
+        game.play = true;
+        play_sound(
+            game.play_sfx.unwrap(),
+            PlaySoundParams {
+                looped: false,
+                volume: 0.9
+            },
+        );
+    }
+    if game.menu_delay <= 0.0 {
         game.state = GameState::Game;
+        play_sound(
+            game.music.unwrap(),
+            PlaySoundParams {
+                looped: true,
+                volume: 0.4,
+            },
+        );
     }
 }
 

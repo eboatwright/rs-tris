@@ -32,6 +32,7 @@ pub fn render_background(game: &Game) {
 	}
 }
 
+#[derive(Clone)]
 pub struct Particle {
 	pub position: Vec2,
 	pub radius: f32,
