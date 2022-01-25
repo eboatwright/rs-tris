@@ -1,17 +1,24 @@
-use crate::util::clamp_range;
+use ::rand::Rng;
+use ::rand::thread_rng;
+use crate::background::*;
+use crate::game_state::*;
+use crate::menu_state::*;
+use crate::block::Block;
 use macroquad::audio::play_sound;
 use crate::util::load_sound_file;
 use macroquad::audio::PlaySoundParams;
-use crate::util::delta_time;
 use crate::util::load_texture_file;
 use macroquad::prelude::*;
-use ::rand::prelude::*;
 
+mod background;
+mod block;
+mod menu_state;
+mod game_state;
 mod util;
 
 pub const SCREEN_WIDTH: i32 = 320;
 pub const SCREEN_HEIGHT: i32 = 256;
-pub const COLORS: [Color; 9] = [
+pub const COLORS: [Color; 10] = [
     Color {
         r: 0.156,
         g: 0.172,
@@ -66,20 +73,39 @@ pub const COLORS: [Color; 9] = [
         b: 0.278,
         a: 1.0,
     },
+    Color {
+        r: 0.043,
+        g: 0.109,
+        b: 0.152,
+        a: 1.0,
+    },
 ];
 
-struct Game {
-    placed_blocks: [[u8; 12]; 16],
-    block: Block,
-    game_over: bool,
-    next_block: Block,
+#[derive(PartialEq)]
+pub enum GameState {
+    Menu,
+    Game,
+}
 
-    block_texture: Option<Texture2D>,
+pub struct Game {
+    pub state: GameState,
+    pub placed_blocks: [[u8; 12]; 16],
+    pub block: Block,
+    pub game_over: bool,
+    pub next_block: Block,
+
+    pub block_texture: Option<Texture2D>,
+    pub background_texture: Option<Texture2D>,
+
+    pub particles: Vec<Particle>,
+
+    pub clear_line_delay: f32,
 }
 
 impl Game {
     async fn new() -> Game {
         Game {
+            state: GameState::Game,
             placed_blocks: [
                 [8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8]; 16
             ],
@@ -88,6 +114,11 @@ impl Game {
             next_block: Block::default(),
 
             block_texture: Some(load_texture_file("res/img/block.png".to_string()).await),
+            background_texture: Some(load_texture_file("res/img/background.png".to_string()).await),
+
+            particles: Vec::new(),
+
+            clear_line_delay: 0.0,
         }
     }
 
@@ -109,305 +140,6 @@ impl Game {
     }
 }
 
-#[derive(Clone)]
-enum BlockShape {
-    I, O, T, J, L, S, Z,
-}
-
-#[derive(Clone)]
-struct Block {
-    position: Vec2,
-    render_position: Vec2,
-    rotation: u8,
-    block_shape: BlockShape,
-    gravity_timer: f32,
-    movement_timer: f32,
-}
-
-impl Default for Block {
-    fn default() -> Block {
-        Block {
-            position: vec2(13.0, 1.0),
-            render_position: vec2(13.0 * 16.0, 16.0),
-            rotation: 0,
-            block_shape: match thread_rng().gen_range(0..7) {
-                0 => BlockShape::I,
-                1 => BlockShape::O,
-                2 => BlockShape::T,
-                3 => BlockShape::J,
-                4 => BlockShape::L,
-                5 => BlockShape::S,
-                6 => BlockShape::Z,
-                _ => BlockShape::I,
-            },
-            gravity_timer: 45.0,
-            movement_timer: 0.0,
-        }
-    }
-}
-
-impl Block {
-    fn get_shape(&self) -> [[u8; 4]; 4] {
-        return match self.block_shape {
-            BlockShape::I => {
-                match self.rotation {
-                    0 => {
-                        [
-                            [0, 1, 0, 0],
-                            [0, 1, 0, 0],
-                            [0, 1, 0, 0],
-                            [0, 1, 0, 0],
-                        ]
-                    },
-                    1 => {
-                        [
-                            [0, 0, 0, 0],
-                            [1, 1, 1, 1],
-                            [0, 0, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    2 => {
-                        [
-                            [0, 0, 1, 0],
-                            [0, 0, 1, 0],
-                            [0, 0, 1, 0],
-                            [0, 0, 1, 0],
-                        ]
-                    },
-                    3 => {
-                        [
-                            [0, 0, 0, 0],
-                            [0, 0, 0, 0],
-                            [1, 1, 1, 1],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    _ => panic!("Block rotation overflow!"),
-                }
-            },
-            BlockShape::O => {
-                match self.rotation {
-                    0 | 1 | 2 | 3 => {
-                        [
-                            [0, 0, 0, 0],
-                            [0, 2, 2, 0],
-                            [0, 2, 2, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    _ => panic!("Block rotation overflow!"),
-                }
-            },
-            BlockShape::T => {
-                match self.rotation {
-                    0 => {
-                        [
-                            [0, 3, 0, 0],
-                            [3, 3, 3, 0],
-                            [0, 0, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    1 => {
-                        [
-                            [0, 3, 0, 0],
-                            [0, 3, 3, 0],
-                            [0, 3, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    2 => {
-                        [
-                            [0, 0, 0, 0],
-                            [3, 3, 3, 0],
-                            [0, 3, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    3 => {
-                        [
-                            [0, 3, 0, 0],
-                            [3, 3, 0, 0],
-                            [0, 3, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    _ => panic!("Block rotation overflow!"),
-                }
-            },
-            BlockShape::J => {
-                match self.rotation {
-                    0 => {
-                        [
-                            [0, 4, 0, 0],
-                            [0, 4, 0, 0],
-                            [4, 4, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    1 => {
-                        [
-                            [4, 0, 0, 0],
-                            [4, 4, 4, 0],
-                            [0, 0, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    2 => {
-                        [
-                            [0, 4, 4, 0],
-                            [0, 4, 0, 0],
-                            [0, 4, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    3 => {
-                        [
-                            [0, 0, 0, 0],
-                            [4, 4, 4, 0],
-                            [0, 0, 4, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    _ => panic!("Block rotation overflow!"),
-                }
-            },
-            BlockShape::L => {
-                match self.rotation {
-                    0 => {
-                        [
-                            [0, 5, 0, 0],
-                            [0, 5, 0, 0],
-                            [0, 5, 5, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    1 => {
-                        [
-                            [0, 0, 0, 0],
-                            [5, 5, 5, 0],
-                            [5, 0, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    2 => {
-                        [
-                            [5, 5, 0, 0],
-                            [0, 5, 0, 0],
-                            [0, 5, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    3 => {
-                        [
-                            [0, 0, 5, 0],
-                            [5, 5, 5, 0],
-                            [0, 0, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    _ => panic!("Block rotation overflow!"),
-                }
-            },
-            BlockShape::S => {
-                match self.rotation {
-                    0 => {
-                        [
-                            [0, 6, 6, 0],
-                            [6, 6, 0, 0],
-                            [0, 0, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    1 => {
-                        [
-                            [0, 6, 0, 0],
-                            [0, 6, 6, 0],
-                            [0, 0, 6, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    2 => {
-                        [
-                            [0, 0, 0, 0],
-                            [0, 6, 6, 0],
-                            [6, 6, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    3 => {
-                        [
-                            [6, 0, 0, 0],
-                            [6, 6, 0, 0],
-                            [0, 6, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    _ => panic!("Block rotation overflow!"),
-                }
-            },
-            BlockShape::Z => {
-                match self.rotation {
-                    0 => {
-                        [
-                            [7, 7, 0, 0],
-                            [0, 7, 7, 0],
-                            [0, 0, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    1 => {
-                        [
-                            [0, 0, 7, 0],
-                            [0, 7, 7, 0],
-                            [0, 7, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    2 => {
-                        [
-                            [0, 0, 0, 0],
-                            [7, 7, 0, 0],
-                            [0, 7, 7, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    3 => {
-                        [
-                            [0, 7, 0, 0],
-                            [7, 7, 0, 0],
-                            [7, 0, 0, 0],
-                            [0, 0, 0, 0],
-                        ]
-                    },
-                    _ => panic!("Block rotation overflow!"),
-                }
-            },
-        }
-    }
-
-    fn lerp_position(&mut self) {
-        self.render_position = self.render_position.lerp(self.position * 16.0, 0.5);
-    }
-
-    fn render(&self, game: &Game) {
-        let shape = self.get_shape();
-        for y in 0..shape.len() {
-            for x in 0..shape[y].len() {
-                if shape[y][x] != 0 {
-                    draw_texture(
-                        game.block_texture.unwrap(),
-                        self.render_position.x + x as f32 * 16.0,
-                        self.render_position.y + y as f32 * 16.0,
-                        COLORS[shape[y][x] as usize],
-                    );
-                }
-            }
-        }
-    }
-}
-
 fn window_conf() -> Conf {
     Conf {
         window_title: "RS-tris".to_string(),
@@ -419,16 +151,6 @@ fn window_conf() -> Conf {
 
 #[macroquad::main(window_conf)]
 async fn main() {
-    let music = load_sound_file("res/sfx/music.ogg".to_string()).await;
-    play_sound(
-        music,
-        PlaySoundParams {
-            looped: true,
-            volume: 1.0,
-        },
-    );
-    let mut game = Game::new().await;
-    game.block.position = vec2(5.0, 0.0);
     let game_render_target = render_target(SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32);
     let camera = Camera2D {
         zoom: vec2(1.0 / SCREEN_WIDTH as f32 * 2.0, 1.0 / SCREEN_HEIGHT as f32 * 2.0),
@@ -436,15 +158,43 @@ async fn main() {
         render_target: Some(game_render_target),
         ..Default::default()
     };
+    let music = load_sound_file("res/sfx/music.ogg".to_string()).await;
+    play_sound(
+        music,
+        PlaySoundParams {
+            looped: true,
+            volume: 0.5,
+        },
+    );
+    let mut game = Game::new().await;
+    let mut random = thread_rng();
+    for _ in 0..30 {
+        game.particles.push(Particle {
+            position: vec2(camera.target.x + random.gen_range(-SCREEN_WIDTH as f32 * 0.5..SCREEN_WIDTH as f32 * 0.5) - 16.0, camera.target.y + random.gen_range(-SCREEN_HEIGHT as f32 * 0.5..SCREEN_HEIGHT as f32 * 0.5)),
+            radius: random.gen_range(20.0..40.0),
+        });
+    }
+    game.state = GameState::Menu;
+    game.block.position = vec2(5.0, 0.0);
     loop {
-        if !update(&mut game).await {
-            game.game_over = true;
+        update_background(&mut game);
+        if game.state == GameState::Game {
+            if !update_game(&mut game).await {
+                game.game_over = true;
+            }
+        } else {
+            update_menu(&mut game);
         }
         
         set_camera(&camera);
         clear_background(BLACK);
 
-        render(&game);
+        render_background(&game);
+        if game.state == GameState::Game {
+            render_game(&game);
+        } else {
+            render_menu(&game);
+        }
 
         set_default_camera();
 
@@ -473,130 +223,5 @@ async fn main() {
         );
 
         next_frame().await
-    }
-}
-
-async fn update(game: &mut Game) -> bool {
-    game.block.lerp_position();
-    game.next_block.lerp_position();
-    if game.game_over {
-        if is_key_pressed(KeyCode::X) {
-            *game = Game::new().await;
-            game.block.position = vec2(5.0, 0.0);
-            return true;
-        }
-        return false;
-    }
-    if is_key_pressed(KeyCode::Z) {
-        game.block.rotation += 1;
-        if game.block.rotation > 3 {
-            game.block.rotation = 0;
-        }
-        if game.block_collides() {
-            if game.block.rotation == 0 {
-                game.block.rotation = 3;
-            } else {
-                game.block.rotation -= 1;
-            }
-        }
-    }
-    if is_key_pressed(KeyCode::X) {
-        for _ in game.block.position.y as usize..16 {
-            game.block.position.y += 1.0;
-            if game.block_collides() {
-                game.block.position.y -= 1.0;
-                game.block.gravity_timer = 0.0;
-                game.block.movement_timer = 6.0;
-                break;
-            }
-        }
-    }
-    if is_key_down(KeyCode::Left)
-    || is_key_down(KeyCode::Right) {
-        game.block.movement_timer -= delta_time();
-        if game.block.movement_timer <= 0.0 {
-            game.block.movement_timer = 7.0;
-            game.block.position.x += if is_key_down(KeyCode::Left) { -1.0 } else { 1.0 };
-            if game.block_collides() {
-                game.block.position.x -= if is_key_down(KeyCode::Left) { -1.0 } else { 1.0 };
-            }
-        }
-    } else {
-        game.block.movement_timer = 0.0;
-    }
-
-    game.block.gravity_timer -= delta_time();
-    if game.block.gravity_timer <= 0.0
-    || is_key_pressed(KeyCode::Down) {
-        if is_key_down(KeyCode::Down) {
-            game.block.gravity_timer = 5.0;
-        } else {
-            game.block.gravity_timer = 45.0;
-        }
-        game.block.position.y += 1.0;
-
-        let shape = game.block.get_shape();
-        if game.block_collides() {
-            game.block.position.y -= 1.0;
-            for y in 0..shape.len() {
-                for x in 0..shape[y].len() {
-                    if shape[y][x] != 0 {
-                        game.placed_blocks[y + clamp_range(0.0, game.block.position.y, 20.0) as usize][x + clamp_range(0.0, game.block.position.x, 20.0) as usize] = shape[y][x];
-                    }
-                }   
-            }
-            game.block = Block {
-                position: vec2(5.0, 0.0),
-                block_shape: game.next_block.block_shape.clone(),
-                ..Default::default()
-            };
-            game.next_block = Block::default();
-        }
-    }
-
-    for y in 0..game.placed_blocks.len() {
-        let mut is_full_line = true;
-        for x in 1..game.placed_blocks[y].len() - 1 {
-            if game.placed_blocks[y][x] == 0 {
-                is_full_line = false;
-            }
-        }
-        if is_full_line {
-            for i in (1..=y).rev() {
-                game.placed_blocks[i] = game.placed_blocks[i - 1];
-            }
-        }
-    }
-
-    let mut lost = false;
-    for x in 1..game.placed_blocks[0].len() - 1 {
-        if game.placed_blocks[0][x] != 0 {
-            lost = true;
-            break;
-        }
-    }
-    if lost {
-        return false;
-    }
-    true
-}
-
-fn render(game: &Game) {
-    for y in 0..game.placed_blocks.len() {
-        for x in 0..game.placed_blocks[y].len() {
-            draw_texture(
-                game.block_texture.unwrap(),
-                x as f32 * 16.0,
-                y as f32 * 16.0,
-                COLORS[game.placed_blocks[y][x] as usize]
-            );
-        }
-    }
-    game.block.render(game);
-    game.next_block.render(game);
-    draw_text("Next:", 215.0, 12.0, 16.0, WHITE);
-    if game.game_over {
-        draw_text("GAME OVER!", 28.0, 20.0, 32.0, WHITE);
-        draw_text("X to play again?", 40.0, 36.0, 16.0, WHITE);
     }
 }

@@ -29,7 +29,3 @@ pub async fn load_texture_file(file_path: String) -> Texture2D {
 pub async fn load_sound_file(file_path: String) -> Sound {
 	audio::load_sound(&get_file_path(file_path)).await.unwrap()
 }
-
-pub async fn load_font_file(file_path: String) -> Font {
-	load_ttf_font(&get_file_path(file_path)).await.unwrap()
-}
