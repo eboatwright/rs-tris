@@ -71,6 +71,13 @@ pub fn update_game(game: &mut Game) -> bool {
     if is_key_pressed(KeyCode::C)
     && !game.has_switched {
         game.has_switched = true;
+        play_sound(
+            game.hit_sfx.unwrap(),
+            PlaySoundParams {
+                looped: false,
+                volume: 0.85,
+            },
+        );
         let old_held_block = game.held_block.clone();
         game.held_block = Some(Block {
             position: vec2(13.0, 7.0),
@@ -139,25 +146,28 @@ pub fn update_game(game: &mut Game) -> bool {
         }
     }
 
+    let mut is_full_line = true;
     for y in 0..game.placed_blocks.len() {
-        let mut is_full_line = true;
+        is_full_line = true;
         for x in 1..game.placed_blocks[y].len() - 1 {
             if game.placed_blocks[y][x] == 0 {
                 is_full_line = false;
             }
         }
         if is_full_line {
-            play_sound(
-                game.clear_line_sfx.unwrap(),
-                PlaySoundParams {
-                    looped: false,
-                    volume: 1.1,
-                },
-            );
-             for i in (1..=y).rev() {
+            for i in (1..=y).rev() {
                 game.placed_blocks[i] = game.placed_blocks[i - 1];
             }
         }
+    }
+    if is_full_line {
+        play_sound(
+            game.clear_line_sfx.unwrap(),
+            PlaySoundParams {
+                looped: false,
+                volume: 1.1,
+            },
+        );
     }
 
     for x in 1..game.placed_blocks[0].len() - 1 {
