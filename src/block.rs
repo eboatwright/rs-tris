@@ -1,8 +1,7 @@
+use macroquad::rand::gen_range;
 use macroquad::prelude::*;
 use crate::COLORS;
 use crate::Game;
-use ::rand::Rng;
-use ::rand::thread_rng;
 
 #[derive(Copy, Clone)]
 pub enum BlockShape {
@@ -25,7 +24,7 @@ impl Default for Block {
             position: vec2(13.0, 1.0),
             render_position: vec2(13.0 * 16.0, 16.0),
             rotation: 0,
-            block_shape: match thread_rng().gen_range(0..7) {
+            block_shape: match gen_range(0, 7) {
                 0 => BlockShape::I,
                 1 => BlockShape::O,
                 2 => BlockShape::T,

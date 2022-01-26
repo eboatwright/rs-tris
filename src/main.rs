@@ -1,7 +1,6 @@
+use macroquad::rand::gen_range;
 use macroquad::audio::stop_sound;
 use macroquad::audio::Sound;
-use ::rand::Rng;
-use ::rand::thread_rng;
 use crate::background::*;
 use crate::game_state::*;
 use crate::menu_state::*;
@@ -90,6 +89,7 @@ pub enum GameState {
 }
 
 pub struct Game {
+    pub time: f32,
     pub state: GameState,
     pub placed_blocks: [[u8; 12]; 16],
     pub block: Block,
@@ -118,6 +118,7 @@ pub struct Game {
 impl Game {
     async fn new() -> Game {
         Game {
+            time: 0.0,
             state: GameState::Game,
             placed_blocks: [[8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8]; 16],
             block: Block::default(),
@@ -162,8 +163,7 @@ impl Game {
     }
 
     pub fn shake(&mut self) {
-        let mut random = thread_rng();
-        self.screen_shake = vec2(random.gen_range(-10.0..10.0), random.gen_range(-10.0..10.0));
+        self.screen_shake = vec2(gen_range(-10.0, 10.0), gen_range(-10.0, 10.0));
     }
 }
 
@@ -186,17 +186,20 @@ async fn main() {
         ..Default::default()
     };
     let mut game = Game::new().await;
-    let mut random = thread_rng();
     for _ in 0..30 {
         game.particles.push(Particle {
-            position: vec2(camera.target.x + random.gen_range(-SCREEN_WIDTH as f32 * 0.5..SCREEN_WIDTH as f32 * 0.5) - 16.0, camera.target.y + random.gen_range(-SCREEN_HEIGHT as f32 * 0.5..SCREEN_HEIGHT as f32 * 0.5)),
-            radius: random.gen_range(20.0..40.0),
+            position: vec2(camera.target.x + gen_range(-SCREEN_WIDTH as f32 * 0.5, SCREEN_WIDTH as f32 * 0.5) - 16.0, camera.target.y + gen_range(-SCREEN_HEIGHT as f32 * 0.5, SCREEN_HEIGHT as f32 * 0.5)),
+            radius: gen_range(20.0, 40.0),
         });
     }
     game.state = GameState::Menu;
     game.block.position = vec2(5.0, 0.0);
     let mut is_other_frame = true;
     loop {
+        game.time += get_frame_time();
+        if game.time < 0.0 {
+            game.time = 0.0;
+        }
         is_other_frame = !is_other_frame;
         update_background(&mut game);
         if game.state == GameState::Game {
